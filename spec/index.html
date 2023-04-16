@@ -42,7 +42,7 @@ markEffects: true
 
 <emu-clause id="useful-options">
   <h1>Options</h1>
-  <p>Build options and document options can be passed in via the command line or specified in the <emu-xref href="#metadata">front-matter</emu-xref> of your document.</p>
+  <p>Build options and document options can be passed in via the command line or specified in the <emu-xref href="#metadata">front-matter</emu-xref> of your document. There is no bright line separating the two categories, but for purposes of organization, document options are defined as those affecting the observable rendered output content.</p>
   <emu-table id="build-options" class="code">
     <emu-caption>Build options</emu-caption>
     <table>
@@ -56,7 +56,6 @@ markEffects: true
       <tr><td>`--lint-spec`</td><td>`lintSpec`</td><td>Enforce some style and correctness checks.</td></tr>
       <tr><td>`--error-formatter`</td><td></td><td>The <a href="https://eslint.org/docs/user-guide/formatters/">eslint formatter</a> to be used for printing warnings and errors when using `--verbose`. Either the name of a built-in eslint formatter or the package name of an installed eslint compatible formatter.</td></tr>
       <tr><td>`--strict`</td><td></td><td>Exit with an error if there are warnings. Cannot be used with `--watch`.</td></tr>
-      <tr><td>`--mark-effects`</td><td>`markEffects`</td><td>Propagate and render <a href="#effects">effects</a> like "user code".</td></tr>
       <tr><td>`--multipage`</td><td></td><td>Emit a distinct page for each top-level clause.</td></tr>
     </table>
   </emu-table>
@@ -78,6 +77,7 @@ markEffects: true
       <tr><td>`--old-toc`</td><td>`oldToc`</td><td>Emit the table of contents at the top of the document rather than as a side pane. Boolean, default false.</td></tr>
       <tr><td>`--load-biblio`</td><td>`extraBiblios`</td><td>Extra biblio.json file(s) to load. This should contain either an object as exported by `--write-biblio` or an array of such objects.</td></tr>
       <tr><td></td><td>`boilerplate`</td><td>An object with `address` and/or `copyright` and/or `license` fields containing paths to files containing the corresponding content for populating an element with class "copyright-and-software-license" (or if not found, an appended <emu-xref href="#emu-annex" title></emu-xref> with that id) when `copyright` is true. Absent fields are assumed to reference files in a "boilerplate" directory sibling of the directory containing the ecmarkup executable.</td></tr>
+      <tr><td>`--mark-effects`</td><td>`markEffects`</td><td>Propagate and render <a href="#effects">effects</a> like "user code".</td></tr>
     </table>
   </emu-table>
 </emu-clause>
@@ -400,6 +400,11 @@ markEffects: true
         <td>Originate, suppress, or constrain the scope of effects.</td>
         <td>`&lt;emu-meta>`, `[fence-effects="user-code"]`</td>
       </tr>
+      <tr>
+        <td>Step optionality</td>
+        <td>Mark a step as deprecated, normative-optional, or legacy.</td>
+        <td>`[normative-optional]`</td>
+      </tr>
     </table>
   </emu-table>
 
@@ -657,9 +662,51 @@ markEffects: true
   </aside>
 </emu-clause>
 
+<emu-clause id="emu-grammar">
+  <h1>emu-grammar</h1>
+  <p>Text inside emu-grammar elements is parsed using <a href="https://github.com/rbuckton/grammarkdown">Grammarkdown</a>. The syntax is essentially identical to the notational conventions in ECMAScript (minus formatting). See the <a href="https://github.com/rbuckton/grammarkdown">Grammarkdown readme</a>.</p>
+  <p>Grammar will be displayed as an inline element flowing with text unless it is the immediate child of an emu-clause-like element.</p>
+
+  <h2>Attributes</h2>
+  <p><b>collapsed:</b> If present, productions are displayed in collapsed format with LHS and RHS on the same line.</p>
+  <p><b>example:</b> If present, the element is an example.</p>
+  <p><b>primary:</b> Optional: Deprecated in favor of type="definition".</p>
+  <p><b>type:</b> Optional: Disposition of the grammar. If absent, it is considered to reference productions defined elsewhere.</p>
+  <ul>
+    <li>"definition": The grammar is an authoritative source for productions which should be the target of references.</li>
+    <li>"example": Deprecated in favor of the <b>example</b> attribute.</li>
+  </ul>
+
+  <h2>Example</h2>
+  <pre><code class="language-html">
+    &lt;p>
+      &lt;emu-grammar type="definition" collapsed example>
+        HexIntegerLiteral :: `0x` HexDigits
+      &lt;/emu-grammar>
+      is a shorthand for:
+    &lt;/p>
+    &lt;emu-grammar type="definition" example>
+      HexIntegerLiteral :: `0` `x` HexDigits
+    &lt;/emu-grammar>
+  </code></pre>
+
+  <h3>Result</h3>
+  <aside class="result">
+    <p>
+      <emu-grammar type="definition" collapsed example>
+        HexIntegerLiteral :: `0x` HexDigits
+      </emu-grammar>
+      is a shorthand for:
+    </p>
+    <emu-grammar type="definition" example>
+      HexIntegerLiteral :: `0` `x` HexDigits
+    </emu-grammar>
+  </aside>
+</emu-clause>
+
 <emu-clause id="grammar">
-  <h1>Specifying Grammar</h1>
-  <p>There are two ways to specify grammar in Ecmarkup: using the <a href="#emu-production">emu-production</a> element and related elements, or by using the <a href="#emu-grammar">emu-grammar</a> element which allows specifying grammar using a plaintext format.</p>
+  <h1>Directly Specifying Grammar</h1>
+  <p>Although discouraged, it is possible to directly specify grammar using the <a href="#emu-production">emu-production</a> element and related elements emitted by <a href="https://github.com/rbuckton/grammarkdown">Grammarkdown</a>.</p>
 
   <h2>Lexical Grammar Examples</h2>
   <pre><code class="language-html">
@@ -732,48 +779,6 @@ markEffects: true
       <emu-rhs><emu-nt>ExpressionStatement</emu-nt></emu-rhs>
     </emu-production>
   </aside>
-
-  <emu-clause id="emu-grammar">
-    <h1>emu-grammar</h1>
-    <p>Text inside emu-grammar elements is parsed using <a href="https://github.com/rbuckton/grammarkdown">Grammarkdown</a>. The syntax is essentially identical to the notational conventions in ECMAScript (minus formatting). See the <a href="https://github.com/rbuckton/grammarkdown">Grammarkdown readme</a>.</p>
-    <p>Grammar will be displayed as an inline element flowing with text unless it is the immediate child of an emu-clause-like element.</p>
-
-    <h2>Attributes</h2>
-    <p><b>collapsed:</b> If present, productions are displayed in collapsed format with LHS and RHS on the same line.</p>
-    <p><b>example:</b> If present, the element is an example.</p>
-    <p><b>primary:</b> Optional: Deprecated in favor of type="definition".</p>
-    <p><b>type:</b> Optional: Disposition of the grammar. If absent, it is considered to reference productions defined elsewhere.</p>
-    <ul>
-      <li>"definition": The grammar is an authoritative source for productions which should be the target of references.</li>
-      <li>"example": Deprecated in favor of the <b>example</b> attribute.</li>
-    </ul>
-
-    <h2>Example</h2>
-    <pre><code class="language-html">
-      &lt;p>
-        &lt;emu-grammar type="definition" collapsed example>
-          HexIntegerLiteral :: `0x` HexDigits
-        &lt;/emu-grammar>
-        is a shorthand for:
-      &lt;/p>
-      &lt;emu-grammar type="definition" example>
-        HexIntegerLiteral :: `0` `x` HexDigits
-      &lt;/emu-grammar>
-    </code></pre>
-
-    <h3>Result</h3>
-    <aside class="result">
-      <p>
-        <emu-grammar type="definition" collapsed example>
-          HexIntegerLiteral :: `0x` HexDigits
-        </emu-grammar>
-        is a shorthand for:
-      </p>
-      <emu-grammar type="definition" example>
-        HexIntegerLiteral :: `0` `x` HexDigits
-      </emu-grammar>
-    </aside>
-  </emu-clause>
 
   <emu-clause id="emu-production">
     <h1>emu-production</h1>
