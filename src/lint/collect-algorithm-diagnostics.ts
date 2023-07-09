@@ -1,4 +1,4 @@
-import type { Node as EcmarkdownNode, OrderedListItemNode } from 'ecmarkdown';
+import type { Node as EcmarkdownNode, OrderedListItemNode, OrderedListNode } from 'ecmarkdown';
 
 import type { LintingError, Reporter } from './algorithm-error-reporter-type';
 import type { default as Spec, Warning } from '../Spec';
@@ -11,14 +11,16 @@ import lintAlgorithmStepNumbering from './rules/algorithm-step-numbering';
 import lintAlgorithmStepLabels from './rules/algorithm-step-labels';
 import lintForEachElement from './rules/for-each-element';
 import lintStepAttributes from './rules/step-attributes';
+import lintIfElseConsistency from './rules/if-else-consistency';
 import { checkVariableUsage } from './rules/variable-use-def';
 import { parse, Seq } from '../expr-parser';
 
 type LineRule = (
   report: Reporter,
-  stepSeq: Seq | null,
   step: OrderedListItemNode,
-  algorithmSource: string
+  algorithmSource: string,
+  parsedSteps: Map<OrderedListItemNode, Seq>,
+  parent: OrderedListNode
 ) => void;
 const stepRules: LineRule[] = [
   lintAlgorithmLineStyle,
@@ -26,6 +28,7 @@ const stepRules: LineRule[] = [
   lintAlgorithmStepLabels,
   lintForEachElement,
   lintStepAttributes,
+  lintIfElseConsistency,
 ];
 
 export function collectAlgorithmDiagnostics(
@@ -70,11 +73,8 @@ export function collectAlgorithmDiagnostics(
     }
     const parsedSteps: Map<OrderedListItemNode, Seq> = new Map();
     let allNodesParsedSuccessfully = true;
-    function walk(visit: LineRule, step: OrderedListItemNode) {
-      // we don't know the names of ops at this point
-      // TODO maybe run later in the process? but not worth worrying about for now
+    function parseStep(step: OrderedListItemNode) {
       const parsed = parse(step.contents, new Set());
-      visit(reporter, parsed.name === 'seq' ? parsed : null, step, algorithmSource); // TODO reconsider algorithmSource
       if (parsed.name === 'failure') {
         allNodesParsedSuccessfully = false;
       } else {
@@ -82,14 +82,29 @@ export function collectAlgorithmDiagnostics(
       }
       if (step.sublist?.name === 'ol') {
         for (const substep of step.sublist.contents) {
-          walk(visit, substep);
+          parseStep(substep);
+        }
+      }
+    }
+
+    function applyRule(visit: LineRule, step: OrderedListItemNode, parent: OrderedListNode) {
+      // we don't know the names of ops at this point
+      // TODO maybe run later in the process? but not worth worrying about for now
+      visit(reporter, step, algorithmSource, parsedSteps, parent);
+      if (step.sublist?.name === 'ol') {
+        for (const substep of step.sublist.contents) {
+          applyRule(visit, substep, step.sublist);
         }
       }
     }
     if (tree != null && !element.hasAttribute('example')) {
+      for (const step of tree.contents.contents) {
+        parseStep(step);
+      }
+
       for (const rule of stepRules) {
         for (const step of tree.contents.contents) {
-          walk(rule, step);
+          applyRule(rule, step, tree.contents);
         }
       }
       if (allNodesParsedSuccessfully) {
